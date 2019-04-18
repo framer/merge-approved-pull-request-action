@@ -27,6 +27,22 @@ NEUTRAL_EXIT_CODE=78
 
 # TODO: implement some delay?
 
+merge() {
+  number="$1"
+  sha="$2"
+
+  jq --raw-output \
+    --arg key0 "sha" --arg value0 "$sha" \
+    --arg key1 "merge_method" --arg value1 "squash" \
+    '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -fsSL \
+      -H "${AUTH_HEADER}" \
+      -H "${API_HEADER}" \
+      -d @- \
+      "${URI}/repos/${GITHUB_REPOSITORY}/pulls/${number}/merge"
+
+  echo "Merged pull request #$number."
+}
+
 main() {
   event="$GITHUB_EVENT_NAME"
 
@@ -36,11 +52,7 @@ main() {
     review_state=$(jq --raw-output .review.state "$GITHUB_EVENT_PATH")
 
     if [[ "$action" == "submitted" ]] && [[ "$review_state" == "approved" ]]; then
-
       number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-      owner=$(jq --raw-output .pull_request.head.repo.owner.login "$GITHUB_EVENT_PATH")
-      repo=$(jq --raw-output .pull_request.head.repo.name "$GITHUB_EVENT_PATH")
-
 
       if [[ ! $(jq -r --arg label2 "$MERGE_LABEL" '.pull_request.labels[] | select(.name == $label2 ) .name' "$GITHUB_EVENT_PATH") == "$MERGE_LABEL" ]]; then
         echo "Not merging pull request, because it is not labeled '$MERGE_LABEL'."
@@ -48,20 +60,11 @@ main() {
         exit "$NEUTRAL_EXIT_CODE"
       fi
 
-      echo "Merging pull request #${number} for owner ${owner}/${repo}..."
+      echo "Merging pull request #${number}..."
 
       sha=$(jq --raw-output .pull_request.head.sha "$GITHUB_EVENT_PATH")
+      merge "$number" "$sha"
 
-      jq --raw-output \
-        --arg key0 "sha" --arg value0 "$sha" \
-        --arg key1 "merge_method" --arg value1 "squash" \
-        '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -fsSL \
-          -H "${AUTH_HEADER}" \
-          -H "${API_HEADER}" \
-          -d @- \
-          "${URI}/repos/${owner}/${repo}/pulls/${number}/merge"
-
-      echo "Pull request merged successfully!"
       exit 0
     fi
 
@@ -86,12 +89,9 @@ main() {
     fi
 
     first_pull=$(echo "$pulls" | jq --raw-output '.[0]')
-
     number=$(echo "$first_pull" | jq --raw-output .number)
-    owner=$(echo "$first_pull" | jq --raw-output .head.repo.owner.login)
-    repo=$(echo "$first_pull" | jq --raw-output .head.repo.name)
 
-    # TODO: duplicate code ^
+    # TODO: Move to a function so that it can be reused.
     if [[ ! $(echo "$first_pull" | jq -r --arg label2 "$MERGE_LABEL" '.labels[] | select(.name == $label2 ) .name') == "$MERGE_LABEL" ]]; then
       echo "Not merging pull request, because it is not labeled '$MERGE_LABEL'."
 
@@ -110,22 +110,11 @@ main() {
       exit "$NEUTRAL_EXIT_CODE"
     fi
 
-    echo "Merging pull request #${number} for owner ${owner}/${repo}..."
+    echo "Merging pull request #${number}..."
 
-
-    # TODO: duplicate code
     sha=$(echo "$first_pull" | jq --raw-output .head.sha)
+    merge "$number" "$sha"
 
-    jq --raw-output \
-      --arg key0 "sha" --arg value0 "$sha" \
-      --arg key1 "merge_method" --arg value1 "squash" \
-      '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -fsSL \
-        -H "${AUTH_HEADER}" \
-        -H "${API_HEADER}" \
-        -d @- \
-        "${URI}/repos/${GITHUB_REPOSITORY}/pulls/${number}/merge"
-
-    echo "Pull request merged successfully!"
     exit 0
   fi
 
