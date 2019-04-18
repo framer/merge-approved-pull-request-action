@@ -6,9 +6,14 @@ that have been approved.
 ## Usage
 
 ```workflow
-workflow "merge approved pull request" {
+workflow "merge approved pull request on review" {
   resolves = ["merge"]
   on = "pull_request_review"
+}
+
+workflow "merge approved pull requst on push" {
+  resolves = ["Automerge approved PRs"]
+  on = "push"
 }
 
 action "merge" {
