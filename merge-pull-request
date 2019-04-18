@@ -1,0 +1,67 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+if [[ -n "$TOKEN" ]]; then
+  GITHUB_TOKEN=$TOKEN
+fi
+
+if [[ -z "$MERGE_LABEL" ]]; then
+  echo "MERGE_LABEL environment variable is not set."
+  exit 1
+fi
+
+if [[ -z "$GITHUB_TOKEN" ]]; then
+  echo "GITHUB_TOKEN environment variable is not set."
+  exit 1
+fi
+
+URI=https://api.github.com
+API_VERSION=v3
+API_HEADER="Accept: application/vnd.github.${API_VERSION}+json"
+AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
+
+# NOTE: https://developer.github.com/actions/creating-github-actions/accessing-the-runtime-environment/#exit-codes-and-statuses
+NEUTRAL_EXIT_CODE=78
+
+# TODO: implement some delay?
+
+main() {
+  action=$(jq --raw-output .action "$GITHUB_EVENT_PATH")
+  review_state=$(jq --raw-output .review.state "$GITHUB_EVENT_PATH")
+
+  if [[ "$action" == "submitted" ]] && [[ "$review_state" == "approved" ]]; then
+
+    number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+    owner=$(jq --raw-output .pull_request.head.repo.owner.login "$GITHUB_EVENT_PATH")
+    repo=$(jq --raw-output .pull_request.head.repo.name "$GITHUB_EVENT_PATH")
+
+
+    if [[ ! $(jq -r --arg label2 "$MERGE_LABEL" '.pull_request.labels[] | select(.name == $label2 ) .name' "$GITHUB_EVENT_PATH") == "$MERGE_LABEL" ]]; then
+      echo "Not merging pull request, because it is not labeled '$MERGE_LABEL'."
+
+      exit "$NEUTRAL_EXIT_CODE"
+    fi
+
+    echo "Merging pull request #${number} for owner ${owner}/${repo}..."
+
+    sha=$(jq --raw-output .pull_request.head.sha "$GITHUB_EVENT_PATH")
+
+    jq --raw-output \
+      --arg key0 "sha" --arg value0 "$sha" \
+      --arg key1 "merge_method" --arg value1 "squash" \
+      '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -fsSL \
+        -H "${AUTH_HEADER}" \
+        -H "${API_HEADER}" \
+        -d @- \
+        "${URI}/repos/${owner}/${repo}/pulls/${number}/merge"
+
+    echo "Pull request merged successfully!"
+    exit 0
+  fi
+
+  exit "$NEUTRAL_EXIT_CODE"
+}
+
+main "$@"
