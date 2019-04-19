@@ -25,8 +25,6 @@ AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
 # NOTE: https://developer.github.com/actions/creating-github-actions/accessing-the-runtime-environment/#exit-codes-and-statuses
 NEUTRAL_EXIT_CODE=78
 
-# TODO: implement some delay?
-
 merge() {
   number="$1"
   sha="$2"
@@ -91,7 +89,6 @@ main() {
     first_pull=$(echo "$pulls" | jq --raw-output '.[0]')
     number=$(echo "$first_pull" | jq --raw-output .number)
 
-    # TODO: Move to a function so that it can be reused.
     if [[ ! $(echo "$first_pull" | jq -r --arg label2 "$MERGE_LABEL" '.labels[] | select(.name == $label2 ) .name') == "$MERGE_LABEL" ]]; then
       echo "Not merging pull request, because it is not labeled '$MERGE_LABEL'."
 
