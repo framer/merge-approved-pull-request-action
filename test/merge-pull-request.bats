@@ -21,9 +21,6 @@ function teardown() {
   local stdoutPath="${BATS_TMPDIR}/${BATS_TEST_NAME}.stdout"
   "$WORKSPACE/merge-pull-request" 1>${stdoutPath}
 
-  # NOTE: check that the SHA hash is written to stdout
-  grep "sha-foo-bar-baz" "$stdoutPath"
-
   # NOTE: check that the PR is going to be merged
   grep "Merging pull request #1" "$stdoutPath"
 
