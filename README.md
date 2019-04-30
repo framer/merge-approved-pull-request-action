@@ -7,18 +7,13 @@ environment variable.
 ## Usage
 
 ```workflow
-workflow "merge approved pull request on review" {
+workflow "merge approved pull request on schedule" {
   resolves = ["merge"]
-  on = "pull_request_review"
-}
-
-workflow "merge approved pull requst on push" {
-  resolves = ["Automerge approved PRs"]
-  on = "push"
+  on = "schedule(*/15 * * * *)"
 }
 
 action "merge" {
-  uses = "framer/merge-approved-pull-request-action@master"
+  users = "framer/merge-approved-pull-request-action@master"
   secrets = ["GITHUB_TOKEN"]
   env = {
     MERGE_LABEL = "dependencies"

@@ -1,6 +1,16 @@
-workflow "Build things" {
+workflow "Check things" {
+  resolves = ["Shellcheck"]
+  on = "push"
+}
+
+action "Shellcheck" {
+  uses = "actions/bin/shellcheck@master"
+  args = "merge-pull-request"
+}
+
+workflow "Merge things" {
   resolves = ["Automerge approved PRs"]
-  on = "pull_request_review"
+  on = "schedule(*/15 * * * *)"
 }
 
 action "Automerge approved PRs" {
