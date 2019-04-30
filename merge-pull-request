@@ -85,21 +85,24 @@ main() {
     if [[ ! $(echo "$pull" | jq -r --arg label2 "$MERGE_LABEL" '.labels[] | select(.name == $label2 ) .name') == "$MERGE_LABEL" ]]; then
       echo "Not merging pull request #${number}, because it is not labeled '$MERGE_LABEL'."
 
-      exit "$NEUTRAL_EXIT_CODE"
+      ctr=$((ctr+1))
+      continue
     fi
 
+    local reviews
     reviews=$(
       curl -XGET -fsSL \
         -H "${AUTH_HEADER}" \
         -H "${API_HEADER}" \
         "${URI}/repos/${GITHUB_REPOSITORY}/pulls/${number}/reviews"
     )
+    local numreviews
     numreviews=$(echo "$reviews" | jq '. | length')
 
     local approvals=0
-    j=0
+    local j=0
     while [ "$j" -lt "$numreviews" ]; do
-      review=$(echo "$reviews" | jq --raw-output ".[$ctr]")
+      review=$(echo "$reviews" | jq --raw-output ".[$j]")
       state=$(echo "$review" | jq --raw-output '.state')
 
       if [[ "$state" == "APPROVED" ]]; then
@@ -110,8 +113,9 @@ main() {
     done
 
     if [[ "$approvals" -lt 1 ]]; then
-      echo "Could not find any reviews approving pull request ${number}."
-      exit "$NEUTRAL_EXIT_CODE"
+      echo "Could not find any reviews approving pull request #${number}."
+      ctr=$((ctr+1))
+      continue
     fi
 
     echo "Merging pull request #${number}..."

@@ -8,12 +8,13 @@ else
   while read -r; do
     echo '{"merged": "true", "message": "Foo merged message"}'
   done
+  exit 0
 fi
 
 args="$*"
 
 if [[ "$args" == *"open"* ]]; then
-  echo '[{ "number": 1, "head": { "sha": "shafoobarbaz" }, "labels": [{"name": "baz"}] }]'
+  echo '[{ "number": 2, "head": { "sha": "shafoobarbaz" }, "labels": [{"name": "baz"}] },{ "number": 1, "head": { "sha": "shafoobarbaz" }, "labels": [{"name": "baz"}] }]'
 elif [[ "$args" == *"reviews"* ]]; then
-  echo '[{"state": "APPROVED"}]'
+  echo '[{"state": "meh"},{"state": "baz"},{"state": "APPROVED"}]'
 fi
