@@ -23,7 +23,7 @@ API_HEADER="Accept: application/vnd.github.${API_VERSION}+json"
 AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
 
 # NOTE: https://developer.github.com/actions/creating-github-actions/accessing-the-runtime-environment/#exit-codes-and-statuses
-NEUTRAL_EXIT_CODE=78
+NEUTRAL_EXIT_CODE=0
 
 merge() {
   number="$1"
@@ -97,14 +97,16 @@ main() {
     numreviews=$(echo "$reviews" | jq '. | length')
 
     local approvals=0
-    ctr=0
-    while [ "$ctr" -lt "$numreviews" ]; do
+    j=0
+    while [ "$j" -lt "$numreviews" ]; do
       review=$(echo "$reviews" | jq --raw-output ".[$ctr]")
       state=$(echo "$review" | jq --raw-output '.state')
 
       if [[ "$state" == "APPROVED" ]]; then
         approvals=$((approvals+1))
       fi
+
+      j=$((j+1))
     done
 
     if [[ "$approvals" -lt 1 ]]; then

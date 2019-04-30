@@ -1,22 +1,19 @@
-workflow "Check things" {
-  resolves = ["Shellcheck"]
+workflow "Run tests" {
   on = "push"
+  resolves = ["ShellCheck", "Bats", "Dockerfilelint"]
 }
 
-action "Shellcheck" {
+action "ShellCheck" {
   uses = "actions/bin/shellcheck@master"
-  args = "merge-pull-request"
+  args = "./merge-pull-request"
 }
 
-workflow "Merge things" {
-  resolves = ["Automerge approved PRs"]
-  on = "schedule(*/15 * * * *)"
+action "Bats" {
+  uses = "actions/bin/bats@master"
+  args = "./test/*.bats"
 }
 
-action "Automerge approved PRs" {
-  uses = "./"
-  secrets = ["GITHUB_TOKEN"]
-  env = {
-    MERGE_LABEL = "dependencies"
-  }
+action "Dockerfilelint" {
+  uses = "docker://replicated/dockerfilelint"
+  args = ["./Dockerfile"]
 }
