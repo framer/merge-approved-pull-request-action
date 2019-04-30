@@ -13,7 +13,7 @@ workflow "merge approved pull request on schedule" {
 }
 
 action "merge" {
-  users = "framer/merge-approved-pull-request-action@master"
+  uses = "framer/merge-approved-pull-request-action@master"
   secrets = ["GITHUB_TOKEN"]
   env = {
     MERGE_LABEL = "dependencies"
