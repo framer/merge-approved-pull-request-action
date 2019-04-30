@@ -7,14 +7,9 @@ environment variable.
 ## Usage
 
 ```workflow
-workflow "merge approved pull request on review" {
+workflow "merge approved pull request on schedule" {
   resolves = ["merge"]
-  on = "pull_request_review"
-}
-
-workflow "merge approved pull requst on push" {
-  resolves = ["Automerge approved PRs"]
-  on = "push"
+  on = "schedule(*/15 * * * *)"
 }
 
 action "merge" {

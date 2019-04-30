@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# TODO: Hacky way to detect when running interactively
+if [ -t 0 ]; then
+  echo ""
+  # running interactivelly
+else
+  while read -r; do
+    echo '{"merged": "true", "message": "Foo merged message"}'
+  done
+fi
+
+args="$*"
+
+if [[ "$args" == *"open"* ]]; then
+  echo '[{ "number": 1, "head": { "sha": "shafoobarbaz" }, "labels": [{"name": "baz"}] }]'
+elif [[ "$args" == *"reviews"* ]]; then
+  echo '[{"state": "APPROVED"}]'
+fi

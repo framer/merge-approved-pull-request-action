@@ -1,12 +1,19 @@
-workflow "Build things" {
-  resolves = ["Automerge approved PRs"]
-  on = "pull_request_review"
+workflow "Run tests" {
+  on = "push"
+  resolves = ["ShellCheck", "Bats", "Dockerfilelint"]
 }
 
-action "Automerge approved PRs" {
-  uses = "./"
-  secrets = ["GITHUB_TOKEN"]
-  env = {
-    MERGE_LABEL = "dependencies"
-  }
+action "ShellCheck" {
+  uses = "actions/bin/shellcheck@master"
+  args = "./merge-pull-request"
+}
+
+action "Bats" {
+  uses = "actions/bin/bats@master"
+  args = "./test/*.bats"
+}
+
+action "Dockerfilelint" {
+  uses = "docker://replicated/dockerfilelint"
+  args = ["./Dockerfile"]
 }

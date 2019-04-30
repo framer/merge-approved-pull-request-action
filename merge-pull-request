@@ -23,99 +23,107 @@ API_HEADER="Accept: application/vnd.github.${API_VERSION}+json"
 AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
 
 # NOTE: https://developer.github.com/actions/creating-github-actions/accessing-the-runtime-environment/#exit-codes-and-statuses
-NEUTRAL_EXIT_CODE=78
+NEUTRAL_EXIT_CODE=0
 
 merge() {
   number="$1"
   sha="$2"
 
-  jq --raw-output \
-    --arg key0 "sha" --arg value0 "$sha" \
-    --arg key1 "merge_method" --arg value1 "squash" \
-    '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -fsSL \
+  result=$(
+    jq --raw-output \
+      --arg key0 "sha" --arg value0 "$sha" \
+      --arg key1 "merge_method" --arg value1 "squash" \
+      '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -fsSL \
+        -H "${AUTH_HEADER}" \
+        -H "${API_HEADER}" \
+        -d @- \
+        "${URI}/repos/${GITHUB_REPOSITORY}/pulls/${number}/merge"
+  )
+
+  merged=$(echo "$result" | jq --raw-output .merged)
+  message=$(echo "$result" | jq --raw-output .message)
+
+  echo "$message"
+
+  if [[ "$merged" == "false" ]]; then
+    echo "Failed to merge pull request #$number"
+    echo 1
+  fi
+}
+
+get_pull_requests() {
+  local pulls
+  pulls=$(
+    curl -XGET -fsSL \
       -H "${AUTH_HEADER}" \
       -H "${API_HEADER}" \
-      -d @- \
-      "${URI}/repos/${GITHUB_REPOSITORY}/pulls/${number}/merge"
+      "${URI}/repos/${GITHUB_REPOSITORY}/pulls?state=open"
+  )
 
-  echo "Merged pull request #$number."
+  echo "$pulls"
 }
 
 main() {
-  event="$GITHUB_EVENT_NAME"
+  pulls=$(get_pull_requests)
 
-  if [[ "$event" == "pull_request_review" ]]; then
-    echo "debug: pull_request_review"
-    action=$(jq --raw-output .action "$GITHUB_EVENT_PATH")
-    review_state=$(jq --raw-output .review.state "$GITHUB_EVENT_PATH")
+  echo "Found $(echo "$pulls" | jq '. | length') pull requests."
 
-    if [[ "$action" == "submitted" ]] && [[ "$review_state" == "approved" ]]; then
-      number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+  if [[ $(echo "$pulls" | jq '. | length') -lt 1 ]]; then
+    echo "Could not find any open pull requests."
+    exit "$NEUTRAL_EXIT_CODE"
+  fi
 
-      if [[ ! $(jq -r --arg label2 "$MERGE_LABEL" '.pull_request.labels[] | select(.name == $label2 ) .name' "$GITHUB_EVENT_PATH") == "$MERGE_LABEL" ]]; then
-        echo "Not merging pull request, because it is not labeled '$MERGE_LABEL'."
+  numpulls=$(echo "$pulls" | jq '. | length')
+  ctr=0
 
-        exit "$NEUTRAL_EXIT_CODE"
-      fi
+  while [ "$ctr" -lt "$numpulls" ]; do
+    pull=$(echo "$pulls" | jq --raw-output ".[$ctr]")
+    number=$(echo "$pull" | jq --raw-output .number)
 
-      echo "Merging pull request #${number}..."
+    echo "Check whether pull request #$number can be merged..."
 
-      sha=$(jq --raw-output .pull_request.head.sha "$GITHUB_EVENT_PATH")
-      merge "$number" "$sha"
-
-      exit 0
-    fi
-
-  elif [[ "$event" == "push" ]]; then
-    echo "debug: push"
-
-    ref=$(jq --raw-output .ref "$GITHUB_EVENT_PATH")
-    owner=${GITHUB_REPOSITORY%%/*}
-
-    pulls=$(
-      curl -XGET -fsSL \
-        -H "${AUTH_HEADER}" \
-        -H "${API_HEADER}" \
-        "${URI}/repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${owner}:${ref}"
-    )
-
-    echo "Found $(echo "$pulls" | jq '. | length') pull requests."
-
-    if [[ $(echo "$pulls" | jq '. | length') -lt 1 ]]; then
-      echo "Could not find any open pull requests."
-      exit "$NEUTRAL_EXIT_CODE"
-    fi
-
-    first_pull=$(echo "$pulls" | jq --raw-output '.[0]')
-    number=$(echo "$first_pull" | jq --raw-output .number)
-
-    if [[ ! $(echo "$first_pull" | jq -r --arg label2 "$MERGE_LABEL" '.labels[] | select(.name == $label2 ) .name') == "$MERGE_LABEL" ]]; then
-      echo "Not merging pull request, because it is not labeled '$MERGE_LABEL'."
+    if [[ ! $(echo "$pull" | jq -r --arg label2 "$MERGE_LABEL" '.labels[] | select(.name == $label2 ) .name') == "$MERGE_LABEL" ]]; then
+      echo "Not merging pull request #${number}, because it is not labeled '$MERGE_LABEL'."
 
       exit "$NEUTRAL_EXIT_CODE"
     fi
 
-    approving_reviews=$(
+    reviews=$(
       curl -XGET -fsSL \
         -H "${AUTH_HEADER}" \
         -H "${API_HEADER}" \
         "${URI}/repos/${GITHUB_REPOSITORY}/pulls/${number}/reviews"
     )
+    numreviews=$(echo "$reviews" | jq '. | length')
 
-    if [[ $(echo "$approving_reviews" | jq '. | length') -lt 1 ]]; then
+    local approvals=0
+    j=0
+    while [ "$j" -lt "$numreviews" ]; do
+      review=$(echo "$reviews" | jq --raw-output ".[$ctr]")
+      state=$(echo "$review" | jq --raw-output '.state')
+
+      if [[ "$state" == "APPROVED" ]]; then
+        approvals=$((approvals+1))
+      fi
+
+      j=$((j+1))
+    done
+
+    if [[ "$approvals" -lt 1 ]]; then
       echo "Could not find any reviews approving pull request ${number}."
       exit "$NEUTRAL_EXIT_CODE"
     fi
 
     echo "Merging pull request #${number}..."
 
-    sha=$(echo "$first_pull" | jq --raw-output .head.sha)
+    sha=$(echo "$pull" | jq --raw-output .head.sha)
     merge "$number" "$sha"
 
-    exit 0
-  fi
+    ctr=$((ctr+1))
+  done
 
-  exit "$NEUTRAL_EXIT_CODE"
+
+  exit 0
 }
 
 main "$@"
