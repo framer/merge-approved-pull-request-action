@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 set -o pipefail
@@ -99,24 +99,35 @@ main() {
     local numreviews
     numreviews=$(echo "$reviews" | jq '. | length')
 
-    local approvals=0
+    declare -A approvals
     local j=0
     while [ "$j" -lt "$numreviews" ]; do
       review=$(echo "$reviews" | jq --raw-output ".[$j]")
-      state=$(echo "$review" | jq --raw-output '.state')
+      user=$(echo "$review" | jq --raw-output ".user.login")
+      state=$(echo "$review" | jq --raw-output ".state")
 
       if [[ "$state" == "APPROVED" ]]; then
-        approvals=$((approvals+1))
+        approvals[$user]=true
+      elif [[ "$state" == "CHANGES_REQUESTED" ]]; then
+        approvals[$user]=false
       fi
 
       j=$((j+1))
     done
 
-    if [[ "$approvals" -lt 1 ]]; then
+    if [[ "${#approvals[@]}" -lt 1 ]]; then
       echo "Could not find any reviews approving pull request #${number}."
       ctr=$((ctr+1))
       continue
     fi
+
+    for user in "${!approvals[@]}"; do
+      if [[ ! "${approvals[$user]}" = true ]]; then
+        echo "Not mergeing pull request #${number}, because @${user} requested changes."
+        ctr=$((ctr+1))
+        continue
+      fi
+    done
 
     echo "Merging pull request #${number}..."
 
