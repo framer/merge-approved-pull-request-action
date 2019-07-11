@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # TODO: Hacky way to detect when running interactively
-if [ -t 0 ]; then
+if read -t 0; then
   echo ""
   # running interactivelly
 else
@@ -15,6 +15,16 @@ args="$*"
 
 if [[ "$args" == *"open"* ]]; then
   echo '[{ "number": 2, "head": { "sha": "shafoobarbaz" }, "labels": [{"name": "baz"}] },{ "number": 1, "head": { "sha": "shafoobarbaz" }, "labels": [{"name": "baz"}] }]'
+
 elif [[ "$args" == *"reviews"* ]]; then
-  echo '[{"state": "meh"},{"state": "baz"},{"state": "APPROVED"}]'
+  if [ -n "$NO_REVIEWS" ]; then
+    echo "[]"
+  else
+  echo '['\
+    '{"user": {"login": "user_a"}, "state": "CHANGES_REQUESTED"},'\
+    '{"user": {"login": "user_b"}, "state": "APPROVED"},'\
+    '{"user": {"login": "user_a"}, "state": "APPROVED"}'\
+    ']'
+  fi
+
 fi
