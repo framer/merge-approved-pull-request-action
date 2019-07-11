@@ -2,4 +2,4 @@
 
 set -e
 
-# apt update && apt install --no-install-recommends -y jq >&2
+apt update && apt install --no-install-recommends -y jq >&2
