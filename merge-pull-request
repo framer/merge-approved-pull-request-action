@@ -123,7 +123,7 @@ main() {
 
     for user in "${!approvals[@]}"; do
       if [[ ! "${approvals[$user]}" = true ]]; then
-        echo "Not mergeing pull request #${number}, because @${user} requested changes."
+        echo "Not merging pull request #${number}, because @${user} requested changes."
         ctr=$((ctr+1))
         continue
       fi
