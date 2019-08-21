@@ -6,17 +6,25 @@ environment variable.
 
 ## Usage
 
-```workflow
-workflow "merge approved pull request on schedule" {
-  resolves = ["merge"]
-  on = "schedule(*/15 * * * *)"
-}
+Create a new GitHub Actions workflow file (e.g. `.github/workflows/merge.yml`)
+with the following definition.
 
-action "merge" {
-  uses = "framer/merge-approved-pull-request-action@master"
-  secrets = ["GITHUB_TOKEN"]
-  env = {
-    MERGE_LABEL = "dependencies"
-  }
-}
+```yaml
+---
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+
+name: Merge approved pull request
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: merge
+        uses: framer/merge-approved-pull-request-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_LABEL: dependencies
+
 ```
