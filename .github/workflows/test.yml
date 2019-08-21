@@ -1,24 +1,23 @@
 ---
-on: push
-name: Run tests
+on: [push, pull_request]
+name: Test
 jobs:
-  dockerfilelint:
-    name: Dockerfilelint
+  test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
+      - uses: actions/checkout@master
 
-    - name: Dockerfilelint
-      uses: docker://replicated/dockerfilelint
-      with:
-        args: ./Dockerfile
+      - name: Dockerfilelint
+        uses: docker://replicated/dockerfilelint
+        with:
+          args: ./Dockerfile
 
-    - name: Bats
-      uses: actions/bin/bats@master
-      with:
-        args: ./test/*.bats
+      - name: Bats
+        uses: actions/bin/bats@master
+        with:
+          args: ./test/*.bats
 
-    - name: ShellCheck
-      uses: actions/bin/shellcheck@master
-      with:
-        args: ./merge-pull-request
+      - name: ShellCheck
+        uses: actions/bin/shellcheck@master
+        with:
+          args: ./merge-pull-request
