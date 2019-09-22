@@ -115,7 +115,10 @@ main() {
       j=$((j+1))
     done
 
-    if [[ "${#approvals[@]}" -lt 1 ]]; then
+    local approval_count
+    approval_count="${#approvals[@]}"
+
+    if [[ "$approval_count" == ?(-)+([0-9]) ]] && [ "$approval_count" -lt 1 ]; then
       echo "Could not find any reviews approving pull request #${number}."
       ctr=$((ctr+1))
       continue
