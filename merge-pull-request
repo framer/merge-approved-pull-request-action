@@ -29,11 +29,13 @@ merge() {
   number="$1"
   sha="$2"
 
+  # NOTE: GitHub API returns a 405 'Method not allowed' HTTP status code if a pull
+  # request could not be merged. https://developer.github.com/v3/pulls/#response-if-merge-cannot-be-performed
   result=$(
     jq --raw-output \
       --arg key0 "sha" --arg value0 "$sha" \
       --arg key1 "merge_method" --arg value1 "squash" \
-      '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -fsSL \
+      '. | .[$key0]=$value0|.[$key1]=$value1' <<< "{}" | curl -XPUT -sSL \
         -H "${AUTH_HEADER}" \
         -H "${API_HEADER}" \
         -d @- \
@@ -47,7 +49,6 @@ merge() {
 
   if [[ "$merged" == "false" ]]; then
     echo "Failed to merge pull request #$number"
-    echo 1
   fi
 }
 
